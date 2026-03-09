@@ -485,23 +485,23 @@ tibble(
 ```{r ex1_random_bootstrap, echo=TRUE, eval=FALSE}
 set.seed(480)
 
-n_samp <- ___
+n_samp <- 200
 B <- 4000
 
 # 1) Draw a random sample (no replacement) from the population vector
-swc_samp_random <- sample(___, size = n_samp, replace = FALSE)
+swc_samp_random <- sample(swc_pop, size = n_samp, replace = FALSE)
 
 # 2) Bootstrap the mean (resample WITH replacement from the sample)
 boot_means_random <- replicate(
   B,
-  mean(sample(swc_samp_random, size = ___, replace = TRUE))
+  mean(sample(swc_samp_random, size = n_samp, replace = TRUE))
 )
 
 # 3) Summarize
 tibble(
   pop_mean = pop_mean_swc,
-  sample_mean = mean(___),
-  boot_sd = sd(___)
+  sample_mean = mean(swc_samp_random),
+  boot_sd = sd(boot_means_random)
 )
 ```
 
@@ -510,7 +510,7 @@ tibble(
 
 tibble(boot_mean = boot_means_random) %>%
   ggplot(aes(x = boot_mean)) +
-  geom_histogram(bins = ___, alpha = 0.85) +
+  geom_histogram(bins = 50, alpha = 0.85) +
   geom_vline(xintercept = mean(swc_samp_random), linetype = "dashed", linewidth = 1.1) +
   geom_vline(xintercept = pop_mean_swc, linetype = "solid", linewidth = 1.1) +
   theme_classic(base_size = 18) +
@@ -525,7 +525,7 @@ tibble(boot_mean = boot_means_random) %>%
 **Prompt (3–4 sentences):** Is the bootstrap distribution centered near the population mean?  
 What does the bootstrap SD represent here?
 
-> *Write your answer here.*
+> *Yes the bootstrap distribution relatively centered near the population mean, with the population mean at ~35.5, and the bootstrap mean ~35.9. Here the bootstrap sd represents the standard deviation (sd) of the bootstrap. In this case one sd of the bootstrap is 0.544 units.*
 
 ---
 
@@ -541,10 +541,12 @@ What does the bootstrap SD represent here?
 # TODO: ensure df has a month column.
 # If you do not already have `month`, create it from a date column as in Part I.
 # HINT: month(date, label = TRUE, abbr = TRUE)
+glimpse(df)
+
 
 df_summer <- df %>%
-  filter(___ %in% c("Jun", "Jul", "Aug")) %>%
-  filter(!is.na(___))
+  filter(month %in% c("Jun", "Jul", "Aug")) %>%
+  filter(!is.na(swc))
 
 swc_summer_pool <- df_summer$swc
 
@@ -558,12 +560,12 @@ n_samp <- 200
 B <- 4000
 
 # 1) Draw a summer-only sample
-swc_samp_summer <- sample(___, size = n_samp, replace = FALSE)
+swc_samp_summer <- sample(swc_summer_pool, size = n_samp, replace = FALSE)
 
 # 2) Bootstrap the mean from that sample
-boot_means_summer <- ___(
+boot_means_summer <- replicate(
   B,
-  mean(sample(___, size = n_samp, replace = TRUE))
+  mean(sample(swc_summer_pool, size = n_samp, replace = TRUE))
 )
 
 # 3) Summarize
@@ -580,7 +582,7 @@ tibble(
 
 tibble(boot_mean = boot_means_summer) %>%
   ggplot(aes(x = boot_mean)) +
-  geom_histogram(bins = ___, alpha = 0.85) +
+  geom_histogram(bins = 50, alpha = 0.85) +
   geom_vline(xintercept = mean(swc_samp_summer), linetype = "dashed", linewidth = 1.1) +
   geom_vline(xintercept = pop_mean_swc, linetype = "solid", linewidth = 1.1) +
   theme_classic(base_size = 18) +
@@ -596,7 +598,7 @@ tibble(boot_mean = boot_means_summer) %>%
 Explain the difference between **precision** and **accuracy** in this example.  
 What *kind* of error is summer-only sampling introducing?
 
-> *Write your answer here.*
+> *The bootstrap does look confident, it has a spread of ~2.5 with a high volume of counts near the mean. However this bootstrap is far off of the population mean. Precision is a measure of how well clumped a group of things are, in this case this bootstrap distribution is very precise. Accuracy is a measure of how close to the actual value or target something is. In this case this bootstrap is not very accurate. By using summer only data we are introducing systematic error.*
 
 ---
 
@@ -614,9 +616,9 @@ k_per_month <- n_samp / 12
 
 # 1) Create a month-stratified sample from df
 df_strat <- df %>%
-  filter(!is.na(___)) %>%
-  group_by(___) %>%
-  slice_sample(n = ___) %>%
+  filter(!is.na(swc)) %>%
+  group_by(month) %>%
+  slice_sample(n = k_per_month) %>%
   ungroup()
 
 swc_samp_strat <- df_strat$swc
@@ -647,7 +649,7 @@ tibble(
 
 tibble(boot_mean = boot_means_strat) %>%
   ggplot(aes(x = boot_mean)) +
-  geom_histogram(bins = ___, alpha = 0.85) +
+  geom_histogram(bins = 50, alpha = 0.85) +
   geom_vline(xintercept = mean(swc_samp_strat), linetype = "dashed", linewidth = 1.1) +
   geom_vline(xintercept = pop_mean_swc, linetype = "solid", linewidth = 1.1) +
   theme_classic(base_size = 18) +
@@ -663,7 +665,7 @@ tibble(boot_mean = boot_means_strat) %>%
 Which sampling design is most accurate for the annual mean? Which looks most precise?  
 What does this teach you about bootstrap and study design?
 
-> *Write your answer here.*
+> *The summer only distribution has the highest precision, and lowest spread of data. However the random and stratified distributions both have much higher accuracy, although higher spread. The mean of the random distribution is slightly lower than the population mean and the mean of the stratified distribution is slightly higher. While both the random and stratified distributions appear fairly accurate, the stratified sample pulls from each month evenly. This may be desirable, however with each month having different number of days then some months may be disproportionately weighted in the distribution, especially February. For this reason I would be more inclined to choose the random distribution.*
 
 ---
 
@@ -698,7 +700,7 @@ Using the **random SWC sample from earlier**, compute a **95% bootstrap confiden
 ```{r ex1_boot_ci_mean, echo=TRUE, eval=FALSE}
 # GOAL: compute the 2.5% and 97.5% quantiles of the bootstrap distribution
 
-quantile(boot_means_random, probs = c(___, ___))
+quantile(boot_means_random, probs = c(0.975, 0.025))
 ```
 
 **Prompt:**
@@ -706,6 +708,8 @@ quantile(boot_means_random, probs = c(___, ___))
 Does the confidence interval contain the **true population mean (`pop_mean_swc`)**?  
 What does this tell you about the uncertainty of the estimate?
 
+
+*The confidence interval tells us that 95% of the samples exist above 34.77538, and below 36.93074. The confidence interval tells us about the uncertainty of the estimate through the range of the interval. A higher range indicates higher levels of uncertainty.*
 ---
 
 ## Exercise 2 — Visualizing the Confidence Interval
@@ -727,6 +731,8 @@ tibble(boot_mean = boot_means_random) %>%
 
 Explain what the **red vertical lines** represent.
 
+
+*The red vertical lines represent the cutoff points for the 2.5 quartile, and the 97.5 quartile, respectively.*
 ---
 
 ## Exercise 3 — Confidence Intervals for a Linear Model
@@ -745,8 +751,8 @@ Examples:
 - `gpp ~ ta`
 
 ```{r ex3_fit_model, echo=TRUE, eval=FALSE}
-response_var <- "___"
-predictor_var <- "___"
+response_var <- "swc"
+predictor_var <- "ta"
 
 model <- lm(df[[response_var]] ~ df[[predictor_var]])
 
@@ -756,13 +762,15 @@ coef(model)
 ### Bootstrap the regression
 
 ```{r ex3_bootstrap_lm, echo=TRUE, eval=FALSE}
+df_regression <- df %>% 
+  slice_sample(n =1000, replace = F)
 set.seed(480)
 
-B <- 2000
+B <- 1000
 
 boot_coef <- replicate(B, {
 
-  samp_rows <- df %>% slice_sample(n = nrow(df), replace = TRUE)
+  samp_rows <- df_regression %>% slice_sample(n = nrow(df_regression), replace = TRUE)
 
   fit <- lm(
     samp_rows[[response_var]] ~ samp_rows[[predictor_var]]
@@ -773,6 +781,7 @@ boot_coef <- replicate(B, {
 })
 
 boot_coef <- t(boot_coef)
+head(boot_coef, 20)
 ```
 
 ### Compute confidence intervals
@@ -789,6 +798,7 @@ Interpret the slope confidence interval.
 - Does it include zero?
 - What does that imply about the relationship between the predictor and response variable?
 
+*The slope confidence interval tells us that the true slope is likely between -0.4476754 and -0.3662247. The slope confidence interval does not include zero. It implies that the two are very likely corellated. If the slope confidence interval did include zero, then there would be a chance of 0 correlation.*
 ---
 
 # Submission
